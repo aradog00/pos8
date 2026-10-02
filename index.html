@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>우리매장 포스기</title>
+    <!-- Tailwind CSS 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React 및 ReactDOM 로드 -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel (JSX 변환용) 로드 -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; background-color: #000000; overflow: hidden; }
+        * { user-select: none; -webkit-user-select: none; font-family: 'Malgun Gothic', sans-serif; }
+        /* 스크롤바 커스텀 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- 해상도 비율 상수 정의 ---
+        const RATIO_DIMENSIONS = {
+          '16:9': { w: 1280, h: 720 },
+          '16:10': { w: 1280, h: 800 },
+          '4:3': { w: 1280, h: 960 },
+          '9:16': { w: 720, h: 1280 },
+          '10:16': { w: 800, h: 1280 },
+          '3:4': { w: 960, h: 1280 },
+        };
+
+        // --- 아이콘(SVG) 컴포넌트 ---
+        const Icon = ({ children, size=24, className="" }) => (
+          <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
+        );
+        const Settings = (p) => <Icon {...p}><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></Icon>;
+        const Calculator = (p) => <Icon {...p}><rect width="16" height="20" x="4" y="2" rx="2"></rect><line x1="8" x2="16" y1="6" y2="6"></line><line x1="16" x2="16" y1="14" y2="18"></line><path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path><path d="M12 14h.01"></path><path d="M8 14h.01"></path><path d="M12 18h.01"></path><path d="M8 18h.01"></path></Icon>;
+        const Plus = (p) => <Icon {...p}><path d="M5 12h14"></path><path d="M12 5v14"></path></Icon>;
+        const Minus = (p) => <Icon {...p}><path d="M5 12h14"></path></Icon>;
+        const Trash2 = (p) => <Icon {...p}><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></Icon>;
+        const RefreshCcw = (p) => <Icon {...p}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 21v-5h5"></path></Icon>;
+        const Check = (p) => <Icon {...p}><polyline points="20 6 9 17 4 12"></polyline></Icon>;
+        const X = (p) => <Icon {...p}><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></Icon>;
+        const PlusCircle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"></circle><path d="M8 12h8"></path><path d="M12 8v8"></path></Icon>;
+        const Keyboard = (p) => <Icon {...p}><path d="M10 8h.01"></path><path d="M12 12h.01"></path><path d="M14 8h.01"></path><path d="M16 12h.01"></path><path d="M18 8h.01"></path><path d="M6 8h.01"></path><path d="M7 16h10"></path><path d="M8 12h.01"></path><rect width="20" height="16" x="2" y="4" rx="2"></rect></Icon>;
+        const CalendarDays = (p) => <Icon {...p}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path><path d="M16 18h.01"></path></Icon>;
+        const ChevronLeft = (p) => <Icon {...p}><path d="m15 18-6-6 6-6"></path></Icon>;
+        const ChevronRight = (p) => <Icon {...p}><path d="m9 18 6-6-6-6"></path></Icon>;
+        const CreditCard = (p) => <Icon {...p}><rect width="20" height="14" x="2" y="5" rx="2"></rect><line x1="2" x2="22" y1="10" y2="10"></line></Icon>;
+        const ListOrdered = (p) => <Icon {...p}><line x1="10" x2="21" y1="6" y2="6"></line><line x1="10" x2="21" y1="12" y2="12"></line><line x1="10" x2="21" y1="18" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></Icon>;
+        const Edit3 = (p) => <Icon {...p}><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></Icon>;
+        const ShoppingBag = (p) => <Icon {...p}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><path d="M3 6h18"></path><path d="M16 10a4 4 0 0 1-8 0"></path></Icon>;
+        const Download = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></Icon>;
+
+        const COLOR_PRESETS = [
+          { id: 'blue', class: 'bg-blue-600 hover:bg-blue-500' },
+          { id: 'green', class: 'bg-emerald-600 hover:bg-emerald-500' },
+          { id: 'red', class: 'bg-rose-600 hover:bg-rose-500' },
+          { id: 'yellow', class: 'bg-amber-500 hover:bg-amber-400' },
+          { id: 'purple', class: 'bg-purple-600 hover:bg-purple-500' },
+          { id: 'gray', class: 'bg-slate-600 hover:bg-slate-500' },
+        ];
+
+        const formatKRW = (number) => new Intl.NumberFormat('ko-KR').format(number);
+
+        const playFeedback = () => {
+          try {
+            if (navigator.vibrate) navigator.vibrate(30);
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); 
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); 
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1); 
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.1);
+          } catch (e) {
+            console.log('Audio feedback not supported.');
+          }
+        };
+
+        function POSApp() {
+          const [activeTab, setActiveTab] = useState('pos');
+          
+          // --- 로컬 스토리지에서 데이터 불러오기 (초기값 설정) ---
+          const [salesHistory, setSalesHistory] = useState(() => {
+            const saved = localStorage.getItem('pos_sales_history');
+            return saved ? JSON.parse(saved) : [];
+          });
+          const [products, setProducts] = useState(() => {
+            const saved = localStorage.getItem('pos_products');
+            return saved ? JSON.parse(saved) : [
+              { id: 1, name: '과일 젤리', bundleQty: 3, bundlePrice: 2000, color: 'red' },
+              { id: 2, name: '초코 쿠키', bundleQty: 5, bundlePrice: 3000, color: 'yellow' },
+              { id: 3, name: '탄산수', bundleQty: 1, bundlePrice: 1500, color: 'blue' },
+            ];
+          });
+          const [landscapeRatio, setLandscapeRatio] = useState(() => {
+            return localStorage.getItem('pos_landscape_ratio') || '16:10';
+          });
+          const [portraitRatio, setPortraitRatio] = useState(() => {
+            return localStorage.getItem('pos_portrait_ratio') || '10:16';
+          });
+
+          const [cart, setCart] = useState([]);
+          const [isCustomInputOpen, setIsCustomInputOpen] = useState(false);
+          
+          const [isPortrait, setIsPortrait] = useState(false);
+          const [appSize, setAppSize] = useState({ w: 1280, h: 800 });
+          const [scale, setScale] = useState(1);
+
+          // --- 데이터 변경 시 기기에 실시간 자동 저장 (useEffect) ---
+          useEffect(() => { localStorage.setItem('pos_sales_history', JSON.stringify(salesHistory)); }, [salesHistory]);
+          useEffect(() => { localStorage.setItem('pos_products', JSON.stringify(products)); }, [products]);
+          useEffect(() => { localStorage.setItem('pos_landscape_ratio', landscapeRatio); }, [landscapeRatio]);
+          useEffect(() => { localStorage.setItem('pos_portrait_ratio', portraitRatio); }, [portraitRatio]);
+
+          // 화면 크기에 맞춰 가로/세로 방향 감지 및 자동 확대/축소(스케일링) 로직
+          useEffect(() => {
+            const handleResize = () => {
+              const width = window.innerWidth;
+              const height = window.innerHeight;
+              
+              // 현재 창 방향 감지 (세로가 길면 Portrait 모드)
+              const currentIsPortrait = height > width;
+              setIsPortrait(currentIsPortrait);
+
+              // 방향에 따라 사용자가 설정한 목표 해상도 가져오기
+              const activeRatio = currentIsPortrait ? portraitRatio : landscapeRatio;
+              const targetDim = RATIO_DIMENSIONS[activeRatio] || RATIO_DIMENSIONS['16:10'];
+              setAppSize(targetDim);
+
+              // 화면 밖으로 나가지 않게 최소 비율로 스케일 계산 (레터박스 방식)
+              const scaleX = width / targetDim.w;
+              const scaleY = height / targetDim.h;
+              setScale(Math.min(scaleX, scaleY));
+            };
+
+            window.addEventListener('resize', handleResize);
+            handleResize();
+            return () => window.removeEventListener('resize', handleResize);
+          }, [landscapeRatio, portraitRatio]);
+
+          const totalPrice = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+
+          const addToCart = (product) => {
+            playFeedback();
+            setCart(prevCart => {
+              const existingItem = prevCart.find(item => item.id === product.id);
+              if (existingItem) {
+                return prevCart.map(item => 
+                  item.id === product.id 
+                    ? { ...item, qty: item.qty + product.bundleQty, totalPrice: item.totalPrice + product.bundlePrice }
+                    : item
+                );
+              } else {
+                return [...prevCart, {
+                  ...product,
+                  qty: product.bundleQty,
+                  totalPrice: product.bundlePrice,
+                  unitPrice: Math.round(product.bundlePrice / product.bundleQty)
+                }];
+              }
+            });
+          };
+
+          const updateCartItemQty = (productId, changeType) => {
+            playFeedback();
+            setCart(prevCart => prevCart.map(item => {
+              if (item.id === productId) {
+                let newQty = item.qty;
+                let newPrice = item.totalPrice;
+                if (changeType === 'bundle_add') { newQty += item.bundleQty; newPrice += item.bundlePrice; } 
+                else if (changeType === 'bundle_sub') { newQty = Math.max(0, newQty - item.bundleQty); newPrice = Math.max(0, newPrice - item.bundlePrice); } 
+                else if (changeType === 'unit_add') { newQty += 1; newPrice += item.unitPrice; } 
+                else if (changeType === 'unit_sub') { newQty = Math.max(0, newQty - 1); newPrice = Math.max(0, newPrice - item.unitPrice); }
+                return { ...item, qty: newQty, totalPrice: newPrice };
+              }
+              return item;
+            }).filter(item => item.qty > 0));
+          };
+
+          const removeCartItem = (productId) => {
+            playFeedback();
+            setCart(prevCart => prevCart.filter(item => item.id !== productId));
+          };
+
+          const resetCart = () => {
+            playFeedback();
+            setCart([]);
+          };
+
+          const handleCheckout = () => {
+            if (cart.length === 0) return;
+            playFeedback();
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const newOrder = { id: Date.now(), date: dateStr, items: [...cart], totalPrice: totalPrice };
+            setSalesHistory(prev => [newOrder, ...prev]);
+            setCart([]);
+          };
+
+          const CustomInputModal = () => {
+            const [customAmount, setCustomAmount] = useState('');
+            const handleNumpad = (num) => { playFeedback(); if (customAmount.length < 8) setCustomAmount(prev => prev + num); };
+            const handleClear = () => { playFeedback(); setCustomAmount(''); };
+            const handleAdd = () => {
+              playFeedback();
+              const amount = parseInt(customAmount, 10);
+              if (!isNaN(amount) && amount > 0) {
+                setCart(prev => [...prev, { id: `custom_${Date.now()}`, name: '직접 입력 (추가금)', bundleQty: 1, bundlePrice: amount, unitPrice: amount, qty: 1, totalPrice: amount, isCustom: true }]);
+                setIsCustomInputOpen(false);
+              }
+            };
+
+            if (!isCustomInputOpen) return null;
+            return (
+              <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+                <div className="bg-slate-800 rounded-2xl w-full max-w-sm p-6 shadow-2xl border border-slate-700">
+                  <div className="flex justify-between items-center mb-5">
+                    <h3 className="text-xl font-bold text-white">직접 금액 입력</h3>
+                    <button onClick={() => setIsCustomInputOpen(false)} className="text-slate-400 hover:text-white"><X size={28} /></button>
+                  </div>
+                  <div className="bg-slate-900 rounded-xl p-4 mb-5 text-right">
+                    <span className="text-3xl font-mono text-white tracking-wider">{customAmount ? formatKRW(customAmount) : '0'} 원</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, '00', 0].map((num) => (
+                      <button key={num} onClick={() => handleNumpad(num.toString())} className="bg-slate-700 active:bg-slate-600 text-white text-2xl font-semibold py-4 rounded-xl shadow-sm">{num}</button>
+                    ))}
+                    <button onClick={handleClear} className="bg-rose-900/50 active:bg-rose-800/50 text-rose-300 text-xl font-semibold py-4 rounded-xl">지움</button>
+                  </div>
+                  <button onClick={handleAdd} disabled={!customAmount} className="w-full bg-emerald-600 active:bg-emerald-500 disabled:opacity-50 text-white text-xl font-bold py-4 rounded-xl shadow-lg">
+                    장바구니 추가
+                  </button>
+                </div>
+              </div>
+            );
+          };
+
+          const renderPOSScreen = () => (
+            <div className={`flex ${isPortrait ? 'flex-col' : 'flex-row'} h-full w-full bg-[#050505] overflow-hidden`}>
+              
+              {/* === 좌측/상단: 상품 선택 & 주문 편집 영역 === */}
+              <div className={`${isPortrait ? 'w-full flex-1 flex-col' : 'w-[65%] h-full flex-col'} flex border-slate-800 shrink-0 ${isPortrait ? 'border-b' : 'border-r'}`}>
+                
+                {/* 1. 상품 타일 영역 */}
+                <div className={`${isPortrait ? 'flex-[1.5]' : 'flex-[3]'} flex flex-col min-h-0 border-b border-slate-800 bg-slate-900`}>
+                  <div className="p-4 bg-slate-950 shrink-0 border-b border-slate-800 flex justify-between items-center z-10 shadow-sm">
+                    <h2 className="text-slate-300 font-bold flex items-center gap-2 text-lg">
+                      <span className="bg-emerald-500/20 text-emerald-400 p-1.5 rounded-lg"><ShoppingBag size={20} /></span>
+                      상품 선택
+                    </h2>
+                  </div>
+                  <div className="flex-1 p-5 overflow-y-auto">
+                    {/* 세로일 땐 4열, 가로일 땐 5열로 배치 */}
+                    <div className={`grid ${isPortrait ? 'grid-cols-4' : 'grid-cols-5'} gap-3`}>
+                      {products.map(product => {
+                        const colorClass = COLOR_PRESETS.find(c => c.id === product.color)?.class || COLOR_PRESETS[0].class;
+                        return (
+                          <button key={product.id} onClick={() => addToCart(product)} className={`${colorClass} rounded-2xl p-4 flex flex-col items-center justify-center text-white shadow-lg active:scale-95 transition-transform min-h-[140px]`}>
+                            <span className="text-xl font-bold mb-1.5 text-center break-keep-all leading-tight">{product.name}</span>
+                            <div className="bg-black/20 rounded px-2 py-0.5 text-sm font-medium mb-1">{product.bundleQty}개 묶음</div>
+                            <span className="text-xl font-black tracking-tight">{formatKRW(product.bundlePrice)}원</span>
+                          </button>
+                        );
+                      })}
+                      <button onClick={() => setIsCustomInputOpen(true)} className="bg-slate-800 border-2 border-dashed border-slate-600 active:bg-slate-700 rounded-2xl p-4 flex flex-col items-center justify-center text-slate-300 shadow-sm active:scale-95 min-h-[140px]">
+                        <Keyboard size={28} className="mb-2" />
+                        <span className="text-lg font-bold">직접 입력</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. 주문 내역 편집 리스트 영역 */}
+                <div className={`${isPortrait ? 'flex-1' : 'flex-[2]'} flex flex-col min-h-0 bg-slate-950`}>
+                  <div className="p-4 bg-slate-950 shrink-0 border-b border-slate-800 flex justify-between items-center z-10 shadow-sm">
+                    <h2 className="text-slate-300 font-bold flex items-center gap-2 text-lg">
+                      <span className="bg-blue-500/20 text-blue-400 p-1.5 rounded-lg"><Edit3 size={20} /></span>
+                      주문 내역 편집
+                    </h2>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-5">
+                    {cart.length === 0 ? (
+                      <div className="h-full flex items-center justify-center text-slate-600 font-medium">상품을 터치하여 추가하세요.</div>
+                    ) : (
+                      <div className={`grid ${isPortrait ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-2'} gap-3`}>
+                        {cart.map(item => (
+                          <div key={item.id} className="bg-slate-800 rounded-xl p-3 flex flex-row justify-between items-center gap-3 border border-slate-700/50">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <div className="text-white font-bold text-lg truncate">{item.name}</div>
+                                <button onClick={() => removeCartItem(item.id)} className="w-8 h-8 shrink-0 rounded-lg bg-rose-900/30 text-rose-400 flex items-center justify-center active:bg-rose-900/60"><Trash2 size={16} /></button>
+                              </div>
+                              {!item.isCustom && <div className="text-sm text-slate-400 mt-0.5">단가 {formatKRW(item.unitPrice)}원</div>}
+                            </div>
+                            
+                            <div className="flex items-center gap-3 shrink-0">
+                              {!item.isCustom ? (
+                                <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-lg border border-slate-700">
+                                  <div className="flex flex-col gap-1 pr-2 border-r border-slate-700">
+                                    <button onClick={() => updateCartItemQty(item.id, 'unit_add')} className="w-6 h-4 rounded bg-slate-700 text-xs font-bold text-slate-300 flex items-center justify-center active:bg-slate-600">+</button>
+                                    <button onClick={() => updateCartItemQty(item.id, 'unit_sub')} className="w-6 h-4 rounded bg-slate-700 text-xs font-bold text-slate-300 flex items-center justify-center active:bg-slate-600">-</button>
+                                  </div>
+                                  <button onClick={() => updateCartItemQty(item.id, 'bundle_sub')} className="w-9 h-9 rounded bg-slate-700 text-white font-bold active:bg-slate-600 flex items-center justify-center"><Minus size={18}/></button>
+                                  <div className="w-10 text-center font-bold text-white text-xl">{item.qty}</div>
+                                  <button onClick={() => updateCartItemQty(item.id, 'bundle_add')} className="w-9 h-9 rounded bg-slate-600 text-white font-bold active:bg-slate-500 flex items-center justify-center"><Plus size={18}/></button>
+                                </div>
+                              ) : (
+                                <div className="bg-slate-900 px-4 py-2 rounded-lg border border-slate-700 font-bold text-white text-xl">{item.qty}개</div>
+                              )}
+                              <div className="text-emerald-400 font-bold text-xl w-[90px] text-right">{formatKRW(item.totalPrice)}원</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* === 우측/하단: 결제 완료 (저장) 영역 === */}
+              <div className={`${isPortrait ? 'w-full shrink-0 flex flex-col bg-slate-950 z-20' : 'w-[35%] flex flex-col h-full bg-slate-950 shrink-0 border-l border-slate-800 shadow-[-5px_0_20px_rgba(0,0,0,0.5)] z-20'}`}>
+                
+                {/* 가로 모드일 때만 보이는 상세 확인 창 */}
+                {!isPortrait && (
+                  <>
+                    <div className="p-4 bg-slate-950 shrink-0 border-b border-slate-800 flex justify-between items-center relative">
+                      <h2 className="text-slate-300 font-bold flex items-center gap-2 text-lg">
+                        <span className="bg-amber-500/20 text-amber-400 p-1.5 rounded-lg"><ListOrdered size={20} /></span>
+                        최종 수량 확인
+                      </h2>
+                      <button onClick={resetCart} disabled={cart.length === 0} className="bg-rose-900/30 active:bg-rose-900/50 border border-rose-900/50 disabled:opacity-30 text-rose-400 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors absolute right-4 top-3.5">
+                        <RefreshCcw size={16} /> 초기화
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-5 space-y-2 bg-slate-900/50">
+                      {cart.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-slate-600 font-medium text-lg">내역이 없습니다.</div>
+                      ) : (
+                        cart.map(item => (
+                          <div key={`summary_${item.id}`} className="flex justify-between items-center py-3 border-b border-slate-800/50">
+                            <span className="text-slate-200 font-bold text-lg truncate pr-2">{item.name}</span>
+                            <div className="flex items-baseline gap-1 shrink-0">
+                              <span className="text-emerald-400 font-black text-2xl">{item.qty}</span>
+                              <span className="text-slate-400 text-base">개</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* 하단 결제 바 */}
+                <div className={`bg-slate-950 shrink-0 ${isPortrait ? 'p-4 flex flex-row items-center justify-between gap-4 border-t border-slate-800' : 'p-6 border-t border-slate-800 relative'}`}>
+                  
+                  <div className={`${isPortrait ? 'flex flex-col justify-center' : 'mb-5 text-right'}`}>
+                    <div className="text-slate-400 text-base font-bold mb-1">총 합계 금액</div>
+                    <div className={`font-black text-emerald-400 tracking-tight ${isPortrait ? 'text-3xl' : 'text-5xl'}`}>{formatKRW(totalPrice)}<span className={`${isPortrait ? 'text-lg' : 'text-2xl'} text-emerald-500/70 ml-2`}>원</span></div>
+                  </div>
+                  
+                  <div className={`${isPortrait ? 'flex flex-row items-center gap-3 shrink-0' : 'relative'}`}>
+                    {isPortrait && (
+                      <button onClick={resetCart} disabled={cart.length === 0} className="h-[60px] px-5 bg-rose-900/30 active:bg-rose-900/50 border border-rose-900/50 disabled:opacity-30 text-rose-400 rounded-lg text-sm font-bold flex items-center justify-center gap-1.5 transition-colors">
+                        <RefreshCcw size={16} /> 초기화
+                      </button>
+                    )}
+                    <button onClick={handleCheckout} disabled={cart.length === 0} className={`${isPortrait ? 'h-[60px] px-8 text-xl' : 'w-full py-5 text-2xl'} bg-blue-600 active:bg-blue-500 disabled:opacity-50 text-white rounded-xl font-black flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-transform active:scale-95`}>
+                      <CreditCard size={isPortrait ? 24 : 32} /> 결제 완료
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          );
+
+          const HistoryScreen = () => {
+            const [currentMonth, setCurrentMonth] = useState(new Date());
+            const [selectedDate, setSelectedDate] = useState(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`);
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+
+            const prevMonth = () => { playFeedback(); setCurrentMonth(new Date(year, month - 1, 1)); };
+            const nextMonth = () => { playFeedback(); setCurrentMonth(new Date(year, month + 1, 1)); };
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const days = Array(firstDay).fill(null).concat(Array.from({length: daysInMonth}, (_, i) => new Date(year, month, i + 1)));
+
+            const formatDateStr = (dateObj) => dateObj ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}` : '';
+            const hasSales = (dateStr) => salesHistory.some(order => order.date === dateStr);
+            
+            const dailyOrders = salesHistory.filter(order => order.date === selectedDate);
+            const dailyTotal = dailyOrders.reduce((sum, order) => sum + order.totalPrice, 0);
+            
+            const dailyItemSummary = dailyOrders.reduce((summary, order) => {
+              order.items.forEach(item => { if (!summary[item.name]) summary[item.name] = 0; summary[item.name] += item.qty; });
+              return summary;
+            }, {});
+            const summaryArray = Object.entries(dailyItemSummary).sort((a, b) => b[1] - a[1]);
+
+            const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+            const monthlyOrders = salesHistory.filter(order => order.date.startsWith(monthPrefix));
+            const monthlyTotal = monthlyOrders.reduce((sum, order) => sum + order.totalPrice, 0);
+            
+            const monthlyItemSummary = monthlyOrders.reduce((summary, order) => {
+              order.items.forEach(item => {
+                if (!summary[item.name]) summary[item.name] = { qty: 0, amount: 0 };
+                summary[item.name].qty += item.qty; summary[item.name].amount += item.totalPrice;
+              });
+              return summary;
+            }, {});
+            const monthlySummaryArray = Object.entries(monthlyItemSummary).sort((a, b) => b[1].qty - a[1].qty);
+
+            const handleDeleteOrder = (orderId) => { playFeedback(); setSalesHistory(prev => prev.filter(order => order.id !== orderId)); };
+            const formatTime = (timestamp) => { const d = new Date(timestamp); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+            const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
+            // CSV(엑셀) 다운로드 함수 추가
+            const exportToCSV = () => {
+              playFeedback();
+              if (salesHistory.length === 0) {
+                alert('저장된 판매 내역이 없습니다.');
+                return;
+              }
+              // CSV 헤더 (BOM 추가하여 한글 깨짐 방지)
+              let csvContent = "\uFEFF주문일자,주문시간,주문번호,상품명,수량,단가,합계금액\n";
+              
+              salesHistory.forEach(order => {
+                const date = order.date;
+                const d = new Date(order.id);
+                const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                
+                order.items.forEach(item => {
+                  // 혹시 상품명에 쉼표(,)가 있으면 CSV가 깨지므로 쌍따옴표로 감싸줍니다.
+                  const safeName = item.name.replace(/"/g, '""');
+                  csvContent += `${date},${time},${order.id},"${safeName}",${item.qty},${item.unitPrice},${item.totalPrice}\n`;
+                });
+              });
+
+              // Blob 객체 생성 및 다운로드 링크 트리거
+              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.setAttribute("href", url);
+              link.setAttribute("download", `매출내역_${new Date().toISOString().slice(0,10)}.csv`);
+              link.style.visibility = 'hidden';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            };
+
+            return (
+              <div className={`flex ${isPortrait ? 'flex-col' : 'flex-row'} h-full w-full bg-[#050505] overflow-hidden`}>
+                
+                {/* --- 좌측/상단: 달력 및 월간 요약 --- */}
+                <div className={`${isPortrait ? 'w-full flex-row h-[50%] p-4 gap-4 overflow-hidden' : 'w-[40%] flex-col p-6 h-full gap-6 overflow-y-auto'} border-slate-800 flex shrink-0 ${isPortrait ? 'border-b bg-slate-950' : 'border-r bg-slate-900'}`}>
+                  
+                  {/* 달력 컨테이너 */}
+                  <div className={`bg-slate-800 rounded-3xl border border-slate-700 shadow-xl shrink-0 ${isPortrait ? 'p-4 flex-1 h-full min-w-0 flex flex-col' : 'p-6 w-full max-w-[420px] mx-auto'}`}>
+                    <div className="flex justify-between items-center mb-5 shrink-0">
+                      <button onClick={prevMonth} className="p-2 active:bg-slate-700 rounded-lg text-slate-300"><ChevronLeft size={24} /></button>
+                      <h2 className="text-xl md:text-2xl font-bold text-white">{year}년 {month + 1}월</h2>
+                      <button onClick={nextMonth} className="p-2 active:bg-slate-700 rounded-lg text-slate-300"><ChevronRight size={24} /></button>
+                    </div>
+                    <div className="grid grid-cols-7 gap-1 md:gap-2 mb-2 shrink-0">
+                      {WEEKDAYS.map((day, idx) => <div key={day} className={`text-center text-xs md:text-sm font-bold pb-1 ${idx === 0 ? 'text-rose-400' : idx === 6 ? 'text-blue-400' : 'text-slate-400'}`}>{day}</div>)}
+                    </div>
+                    <div className={`grid grid-cols-7 gap-1 md:gap-2 ${isPortrait ? 'flex-1 overflow-y-auto' : ''}`}>
+                      {days.map((dateObj, idx) => {
+                        if (!dateObj) return <div key={`empty-${idx}`} className={isPortrait ? "h-10" : "h-12"} />;
+                        const dateStr = formatDateStr(dateObj);
+                        const isSelected = selectedDate === dateStr;
+                        const dayHasSales = hasSales(dateStr);
+                        return (
+                          <button key={dateStr} onClick={() => { playFeedback(); setSelectedDate(dateStr); }} className={`${isPortrait ? "h-10 text-base" : "h-12 text-lg"} rounded-xl flex flex-col items-center justify-center relative font-bold transition-colors ${isSelected ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-900/50 text-slate-300 active:bg-slate-700'} ${dateObj.getDay() === 0 ? 'text-rose-400' : dateObj.getDay() === 6 ? 'text-blue-400' : ''}`}>
+                            <span>{dateObj.getDate()}</span>
+                            {dayHasSales && <div className={`w-1.5 h-1.5 rounded-full absolute bottom-1 ${isSelected ? 'bg-white' : 'bg-emerald-400'}`} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 월간 요약 컨테이너 */}
+                  <div className={`bg-slate-800 rounded-3xl border border-slate-700 shadow-xl flex flex-col ${isPortrait ? 'p-4 flex-1 h-full min-w-0' : 'p-5 w-full max-w-[420px] mx-auto min-h-[250px]'}`}>
+                    <h3 className="text-base md:text-lg font-bold text-white mb-3 flex justify-between items-end shrink-0">
+                      <span>{month + 1}월 전체 요약</span>
+                      <div className="flex gap-2 items-center">
+                        <button onClick={exportToCSV} className="text-xs text-white bg-blue-600 active:bg-blue-500 px-2 py-1.5 rounded-lg flex items-center gap-1 font-bold shadow-sm"><Download size={14} /> 엑셀 저장</button>
+                        <span className="text-xs md:text-sm text-slate-400 bg-slate-900 px-2 py-1.5 rounded-lg font-medium">총 {monthlyOrders.length}건</span>
+                      </div>
+                    </h3>
+                    <div className="flex-1 overflow-y-auto mb-3 bg-slate-900/50 rounded-xl border border-slate-700/50 p-2 shadow-inner">
+                      {monthlySummaryArray.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-slate-500 text-sm">판매 내역이 없습니다.</div>
+                      ) : (
+                        <div className="space-y-1">
+                          {monthlySummaryArray.map(([name, data]) => (
+                            <div key={`month_${name}`} className="flex justify-between items-center py-2 px-3 border-b border-slate-800/50 rounded-lg">
+                              <span className="text-slate-300 text-xs md:text-sm font-medium flex-1 truncate pr-2">{name}</span>
+                              <div className="flex items-center justify-end gap-2 md:gap-3 shrink-0">
+                                <span className="text-emerald-400 font-bold text-xs md:text-sm w-10 md:w-12 text-right">{data.qty}개</span>
+                                <span className="text-slate-300 text-xs md:text-sm font-medium w-16 md:w-20 text-right">{formatKRW(data.amount)}원</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="shrink-0 flex justify-between items-center pt-3 border-t border-slate-700 border-dashed">
+                      <span className="text-slate-400 font-bold text-xs md:text-sm">월 매출 합계</span>
+                      <span className="text-emerald-400 font-black text-lg md:text-2xl">{formatKRW(monthlyTotal)} <span className="text-sm md:text-base">원</span></span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* --- 우측/하단: 일일 상세 리스트 --- */}
+                <div className={`${isPortrait ? 'w-full flex-1' : 'w-[60%] h-full'} flex flex-col bg-[#050505] shrink-0`}>
+                  <div className="p-4 md:p-6 bg-slate-950 border-b border-slate-800 shrink-0 z-10 shadow-sm flex flex-row justify-between items-end">
+                    <div className="flex-1 pr-6 max-h-[140px] overflow-y-auto border-r border-slate-800 mr-6">
+                      {summaryArray.length > 0 && (
+                        <div>
+                          <div className="text-slate-400 text-xs md:text-sm font-bold mb-2">일일 품목별 수량 요약</div>
+                          <div className="bg-slate-900 rounded-xl p-3 border border-slate-800">
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                              {summaryArray.map(([name, qty]) => (
+                                <div key={name} className="flex justify-between items-center py-1 border-b border-slate-800/50">
+                                  <span className="text-slate-300 truncate pr-2 font-medium text-xs md:text-sm">{name}</span>
+                                  <div className="flex items-baseline gap-1 shrink-0"><span className="text-emerald-400 font-bold">{qty}</span><span className="text-slate-500 text-[10px] md:text-xs">개</span></div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0 pb-1">
+                      <div className="text-slate-400 font-bold mb-2 text-sm md:text-lg">일일 합계 금액</div>
+                      <div className="text-3xl md:text-5xl font-black text-emerald-400 tracking-tight">{formatKRW(dailyTotal)} <span className="text-xl md:text-3xl text-emerald-500/70">원</span></div>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                    <h3 className="text-lg md:text-xl font-bold text-white mb-4 flex items-center justify-between">
+                      <span>{selectedDate} 건별 내역</span>
+                      <span className="text-emerald-400 bg-emerald-900/30 px-3 py-1.5 rounded text-sm">총 {dailyOrders.length}건</span>
+                    </h3>
+                    {dailyOrders.length === 0 ? (
+                      <div className="h-40 flex flex-col items-center justify-center text-slate-500 font-medium text-base md:text-lg"><ListOrdered size={32} className="mb-2" />결제 내역이 없습니다.</div>
+                    ) : (
+                      <div className={`grid ${isPortrait ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'} gap-4`}>
+                        {dailyOrders.slice().reverse().map((order, idx) => (
+                          <div key={order.id} className="bg-slate-800 p-4 md:p-5 rounded-2xl border border-slate-700 shadow-md h-fit">
+                            <div className="flex justify-between items-center mb-3 pb-3 border-b border-slate-700/50">
+                              <span className="text-slate-400 font-bold text-xs md:text-sm flex items-center gap-2">
+                                <span className="bg-slate-700 text-white px-2 py-0.5 rounded text-xs">{dailyOrders.length - idx}</span>
+                                {formatTime(order.id)}
+                              </span>
+                              <button onClick={() => handleDeleteOrder(order.id)} className="text-slate-500 active:text-rose-400 p-1.5 bg-slate-900/50 rounded-lg"><Trash2 size={16} /></button>
+                            </div>
+                            <div className="space-y-2 mb-3">
+                              {order.items.map((item, itemIdx) => (
+                                <div key={itemIdx} className="flex justify-between text-slate-300 text-sm md:text-base">
+                                  <span className="truncate pr-2">{item.name} <span className="text-slate-500 text-xs md:text-sm">x {item.qty}</span></span>
+                                  <span className="font-medium shrink-0">{formatKRW(item.totalPrice)}원</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex justify-between items-center pt-3 border-t border-slate-700 border-dashed">
+                              <span className="text-slate-400 text-xs md:text-sm font-bold">건별 합계</span>
+                              <span className="text-emerald-400 font-black text-lg md:text-xl">{formatKRW(order.totalPrice)}원</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          };
+
+          const AdminScreen = () => {
+            const [newName, setNewName] = useState('');
+            const [newQty, setNewQty] = useState('1');
+            const [newPrice, setNewPrice] = useState('');
+            const [selectedColor, setSelectedColor] = useState('blue');
+
+            const handleAddProduct = (e) => {
+              e.preventDefault();
+              if (!newName || !newQty || !newPrice) return;
+              setProducts([...products, { id: Date.now(), name: newName, bundleQty: parseInt(newQty, 10), bundlePrice: parseInt(newPrice, 10), color: selectedColor }]);
+              setNewName(''); setNewQty('1'); setNewPrice(''); playFeedback();
+            };
+
+            return (
+              <div className="flex-1 p-6 md:p-8 overflow-y-auto bg-[#050505] h-full">
+                <div className="max-w-3xl mx-auto w-full">
+                  
+                  {/* --- 화면 비율 설정 패널 --- */}
+                  <div className="bg-slate-800 rounded-2xl p-6 mb-6 border border-slate-700 shadow-xl">
+                    <h3 className="text-lg font-bold text-white mb-4">화면 비율 및 레이아웃 설정</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-slate-400 text-sm font-medium mb-2">가로 모드 비율</label>
+                        <div className="flex gap-2">
+                          {['16:9', '16:10', '4:3'].map(ratio => (
+                            <button key={`land_${ratio}`} type="button" onClick={() => { playFeedback(); setLandscapeRatio(ratio); }} className={`flex-1 py-3 rounded-lg font-bold text-sm transition-colors ${landscapeRatio === ratio ? 'bg-emerald-600 text-white shadow-inner' : 'bg-slate-900 text-slate-400 border border-slate-700 hover:bg-slate-700'}`}>{ratio}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 text-sm font-medium mb-2">세로 모드 비율</label>
+                        <div className="flex gap-2">
+                          {['9:16', '10:16', '3:4'].map(ratio => (
+                            <button key={`port_${ratio}`} type="button" onClick={() => { playFeedback(); setPortraitRatio(ratio); }} className={`flex-1 py-3 rounded-lg font-bold text-sm transition-colors ${portraitRatio === ratio ? 'bg-emerald-600 text-white shadow-inner' : 'bg-slate-900 text-slate-400 border border-slate-700 hover:bg-slate-700'}`}>{ratio}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-800 rounded-2xl p-6 mb-6 border border-slate-700 shadow-xl">
+                    <h3 className="text-lg font-bold text-white mb-4">새 상품 등록</h3>
+                    <form onSubmit={handleAddProduct} className="space-y-4">
+                      <div>
+                        <label className="block text-slate-400 text-sm font-medium mb-1">상품명</label>
+                        <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="예: 과일 젤리" className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-4 text-base focus:outline-none focus:border-emerald-500" required />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-slate-400 text-sm font-medium mb-1">터치시 수량</label>
+                          <input type="number" value={newQty} onChange={(e) => setNewQty(e.target.value)} min="1" className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-4 text-base focus:outline-none focus:border-emerald-500" required />
+                        </div>
+                        <div>
+                          <label className="block text-slate-400 text-sm font-medium mb-1">세트 가격(원)</label>
+                          <input type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="예: 2000" min="0" step="10" className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-4 text-base focus:outline-none focus:border-emerald-500" required />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 text-sm font-medium mb-2">버튼 색상</label>
+                        <div className="flex gap-3 flex-wrap">
+                          {COLOR_PRESETS.map(color => (
+                            <button key={color.id} type="button" onClick={() => setSelectedColor(color.id)} className={`w-12 h-12 rounded-full ${color.class.split(' ')[0]} flex items-center justify-center transition-transform ${selectedColor === color.id ? 'ring-4 ring-white scale-110' : 'opacity-70'}`}>
+                              {selectedColor === color.id && <Check size={20} className="text-white" />}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <button type="submit" className="w-full mt-4 bg-emerald-600 active:bg-emerald-500 text-white font-bold py-4 rounded-xl text-lg flex items-center justify-center gap-2"><PlusCircle size={20} /> 상품 등록하기</button>
+                    </form>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-bold text-white mb-4">등록된 상품 목록</h3>
+                    <div className="space-y-3">
+                      {products.map(product => {
+                        const colorClass = COLOR_PRESETS.find(c => c.id === product.color)?.class.split(' ')[0] || 'bg-slate-600';
+                        return (
+                          <div key={product.id} className="bg-slate-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between border border-slate-700 gap-3">
+                            <div className="flex items-center gap-4">
+                              <div className={`w-4 h-12 rounded ${colorClass}`}></div>
+                              <div>
+                                <div className="text-white font-bold text-lg leading-tight">{product.name}</div>
+                                <div className="text-slate-400 text-sm mt-0.5">{product.bundleQty}개 묶음 / {formatKRW(product.bundlePrice)}원</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                              <div className="flex gap-1 bg-slate-900 p-1.5 rounded-lg border border-slate-700 flex-wrap">
+                                {COLOR_PRESETS.map(color => (
+                                  <button key={color.id} onClick={() => { playFeedback(); setProducts(products.map(p => p.id === product.id ? { ...p, color: color.id } : p)); }} className={`w-7 h-7 rounded-md ${color.class.split(' ')[0]} flex items-center justify-center ${product.color === color.id ? 'ring-2 ring-white scale-110' : 'opacity-40'}`} />
+                                ))}
+                              </div>
+                              <button onClick={() => { playFeedback(); setProducts(products.filter(p => p.id !== product.id)); }} className="p-2 text-slate-500 active:text-rose-400 bg-slate-900/50 rounded-lg"><Trash2 size={24} /></button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          };
+
+          return (
+            <div className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden w-full h-full">
+              {/* 스케일링이 적용되는 동적 해상도 고정 캔버스 */}
+              <div 
+                className="bg-[#050505] flex flex-col font-sans relative text-white shadow-2xl shrink-0 origin-center overflow-hidden"
+                style={{ width: `${appSize.w}px`, height: `${appSize.h}px`, transform: `scale(${scale})` }}
+              >
+                <nav className="flex bg-slate-950 border-b border-slate-800 shrink-0 z-20">
+                  <button onClick={() => setActiveTab('pos')} className={`flex-1 min-w-[100px] py-4 flex flex-row items-center justify-center gap-2 font-bold text-base transition-colors ${activeTab === 'pos' ? 'text-emerald-400 border-b-2 border-emerald-400 bg-slate-900' : 'text-slate-500 active:text-slate-300'}`}>
+                    <Calculator size={24} /> <span>계산 화면</span>
+                  </button>
+                  <button onClick={() => setActiveTab('history')} className={`flex-1 min-w-[100px] py-4 flex flex-row items-center justify-center gap-2 font-bold text-base transition-colors ${activeTab === 'history' ? 'text-emerald-400 border-b-2 border-emerald-400 bg-slate-900' : 'text-slate-500 active:text-slate-300'}`}>
+                    <CalendarDays size={24} /> <span>판매 내역</span>
+                  </button>
+                  <button onClick={() => setActiveTab('admin')} className={`flex-1 min-w-[100px] py-4 flex flex-row items-center justify-center gap-2 font-bold text-base transition-colors ${activeTab === 'admin' ? 'text-emerald-400 border-b-2 border-emerald-400 bg-slate-900' : 'text-slate-500 active:text-slate-300'}`}>
+                    <Settings size={24} /> <span>상품 세팅</span>
+                  </button>
+                </nav>
+                <main className="flex-1 overflow-hidden relative flex flex-col w-full h-full">
+                  {activeTab === 'pos' && renderPOSScreen()}
+                  {activeTab === 'admin' && <AdminScreen />}
+                  {activeTab === 'history' && <HistoryScreen />}
+                </main>
+                <CustomInputModal />
+              </div>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<POSApp />);
+    </script>
+</body>
+</html>
